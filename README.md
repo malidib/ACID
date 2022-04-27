@@ -14,9 +14,12 @@ The Astrophysical CIrcles Detector (ACID) is a computer vision package trained t
 
 ### Installation & Usage
 ACID can be downloaded and used right away. No installation is needed. It does however have many dependencies that must be installed. Multiple usage examples are included. 
-Acknowledgments
+
+### Acknowledgments
 A dedicated ACID paper will be published soon. In the meanwhile, if you find ACID useful, please cite this Github repository and the following two papers:
+
 Ali-Dib, M. et al. (2020) Icarus, Volume 345, article id. 113749.
+
 Silburt, A., Ali-Dib, M. et al. (2019) Icarus, Volume 317, p. 27-38.
 
 ### License
