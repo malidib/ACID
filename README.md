@@ -10,7 +10,7 @@ Characteristics
 - Returns the location, size, and shape of the detected objects. 
 - Packs many convenience functions to preprocess images and postprocess results. 
 - Still in active development. 
-- 
+
 ### Installation & Usage
 ACID can be downloaded and used right away. No installation is needed. It does however have many dependencies that must be installed. Multiple usage examples are included. 
 Acknowledgments
