@@ -3,7 +3,8 @@
 ## Welcome to ACID
 
 The Astrophysical CIrcles Detector (ACID) is a computer vision package trained to detect quasi-circular objects in, non-exclusively, astrophysical images. Such objects include impact craters on any well imaged solar system object, eddies (cyclones) on gas planets, boulders on asteroids and comets, and even HI holes in galaxies. 
-Characteristics 
+
+### Characteristics 
 - It is an ensemble model built on top of the MaskRCNN semantic segmentation framework (Matterport implementation). 
 - Easy to install and use. No prior experience with machine learning is needed. Can be used on a personal computer.
 - Trained on a massive and highly augmented craters-only dataset. Detection of any other object is a form of transfer-learning.
