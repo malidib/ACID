@@ -11,7 +11,7 @@ The Astrophysical CIrcles Detector (ACID) is a computer vision package trained t
 - Still in active development. 
 
 ### Installation & Usage
-ACID can be downloaded and used right away. No installation is needed. It does however have many dependencies that must be installed. A conda environment with all of the needed packages can be installed using the provided yml file : conda env create -f environment.yml 
+ACID can be downloaded and used right away. No installation is needed. It does however have many dependencies that must be installed. A conda environment with all of the needed packages can be installed using the provided yml file : conda env create -f acid_env.yml 
 
 Multiple usage examples are included. 
 
