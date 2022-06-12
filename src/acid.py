@@ -149,6 +149,7 @@ class_names = ['BackGround', 'crater']
 
 
 
+
 def model_inference(image,models_directory,which_models='all'):
 
     print("""\
@@ -176,9 +177,7 @@ d8.          `8b  `aY8888Ya.   88  88888888Ya.
         model_path_array = all_models_array[which_models]
 
 
-    masktot1 = np.zeros([512,512])
     Craters_Master_list = []
-    masks_array = []
     for model_path in model_path_array:
 
         #print ('Loading model from: ' model_path)
@@ -211,10 +210,8 @@ d8.          `8b  `aY8888Ya.   88  88888888Ya.
 
                         coords[2] =  0.5*abs(rois[0]-rois[2])/2. + \
                                      0.5*abs(rois[1]-rois[3])/2.
-                        coords[0] =    abs(min(rois[1],rois[3]) + coords[2])
-                        coords[1] =    abs(min(rois[0],rois[2]) + coords[2])
-                        xpixglob =     0.5*abs(min(rois[1],rois[3]) + coords[2])
-                        ypixglob =     0.5*abs(min(rois[0],rois[2]) + coords[2])
+                        xpixglob =     abs(min(rois[1],rois[3]) + coords[2])
+                        ypixglob =     abs(min(rois[0],rois[2]) + coords[2])
 
 
                         Craters_Master_list.append\
@@ -225,7 +222,157 @@ d8.          `8b  `aY8888Ya.   88  88888888Ya.
             except:
                 continue
 
+
     return np.array(Craters_Master_list)
+
+
+
+def model_inference_grid(directory,models_directory,which_models='all',window_size=512,\
+                            NORMALIZE=1,CONV_GS=1,INVERSE=0, EQUALIZE=0, CLAHE=1, RESIZE=1,LIMITS=[0,-1,0,-1] ):
+
+
+
+    print("""\
+--------------------------------------------------        
+                                                  
+       db         ,ad8888ba,   88  88888888ba,    
+      d88b       d8a.    `a8b  88  88      `a8b   
+     d8.`8b     d8.            88  88        `8b  
+    d8.  `8b    88             88  88         88  
+   d8YaaaaY8b   88             88  88         88  
+  d8aaaaaaaa8b  Y8,            88  88         8P  
+ d8.        `8b  Y8a.    .a8P  88  88      .a8P   
+d8.          `8b  `aY8888Ya.   88  88888888Ya.    
+
+--------------------------------------------------                                                         
+                    """)
+
+
+
+    if ('.IMG' in directory):
+        image_file = PDS3Image.open(directory)
+        image_data = image_file.image
+        im = image_data
+        image_glob =  np.array(im)[LIMITS[0]:LIMITS[1],LIMITS[2]:LIMITS[3]]
+    else:
+        if (('.FITS' in directory) | ('.FIT' in directory)):
+            image_data = fits.getdata(directory, ext=0)
+            im = image_data
+            image_glob =  np.array(im)[LIMITS[0]:LIMITS[1],LIMITS[2]:LIMITS[3]]
+        else:
+            im = Image.open(directory)
+            image_glob =  np.array(im)[LIMITS[0]:LIMITS[1],LIMITS[2]:LIMITS[3]]
+
+
+    #print (np.shape(image_glob))
+
+    all_models_array = np.array(sorted(glob.glob(models_directory)))
+    if (which_models == 'all'):
+        model_path_array = all_models_array
+    else:
+        model_path_array = all_models_array[which_models]
+
+
+
+    Craters_Master_list = []
+
+    M = window_size
+    N = window_size
+    for model_path in model_path_array:
+        for xc in range(0,image_glob.shape[1],M):
+            for yc in range(0,image_glob.shape[0],N):  
+                try:
+
+
+                    imagebase = copy.deepcopy(image_glob[yc:yc+window_size,xc:xc+window_size])
+                    #print (np.shape(imagebase),np.unique(imagebase))
+
+                    if (NORMALIZE==1):
+                        imagebase = imagebase/(np.max(imagebase))
+                        imagebase = (imagebase*255).astype('uint8')
+                    if (CONV_GS==1):
+                        imagebase=np.array(PIL.ImageOps.grayscale(Image.fromarray(imagebase)))
+                    if (INVERSE==1):
+                        imagebase= np.array(PIL.ImageOps.invert(Image.fromarray(imagebase)))
+                    if (EQUALIZE==1):
+                        imagebase=np.array(PIL.ImageOps.equalize(Image.fromarray(imagebase)))
+                    if (RESIZE==1):
+                        imagebase = cv2.resize(np.array(imagebase), (512, 512), interpolation=cv2.INTER_LINEAR) 
+                    if (CONV_GS==1):
+                        imagebase = np.stack((imagebase,)*3, axis=-1)
+                    if (CLAHE==1):
+                        clahe_l=rgb_clahe_justl(imagebase) # CLahe just L band  ## Improve contrast                                               
+                        imagebase[...,0]=clahe_l
+                        imagebase[...,1]=clahe_l
+                        imagebase[...,2]=clahe_l
+
+                    image = imagebase
+                    #print (np.shape(image),np.unique(image))
+
+                    inference_config = InferenceConfig()
+                    # Recreate the model in inference mode
+                    model_infer2 = modellib.MaskRCNN(mode="inference", 
+                                              config=inference_config,
+                                              model_dir=MODEL_DIR)
+
+                    ## Load trained weights (fill in path to trained weights here)
+                    assert model_path != "", "Provide path to trained weights"
+                    print("Loading weights from ", model_path)
+                    model_infer2.load_weights(model_path, by_name=True)
+
+                    r = model_infer2.detect([image], verbose=2)[0]   # Main inference command
+
+                    for roisit in range (0,len(r["rois"])):
+                        try:
+                            if (len((np.ravel(r["masks"].T[roisit]))\
+                                    [(np.ravel(r["masks"].T[roisit])) > 0] ) < 1.*(50120*50120)):#0.5*262144):
+                                _, contours, hierarchy = \
+                                cv2.findContours(np.transpose(r["masks"])[roisit].copy() ,\
+                                cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_NONE)
+                                cnt = contours[0]
+                                (__, __), (MA, ma), angle = cv2.fitEllipse(cnt) 
+                                if ((ma/(MA+1e-20)) < 9999. ):
+                                    coords=np.ndarray(shape=(3,1), dtype=float)
+                                    rois = r["rois"][roisit]
+
+                                    coords[2] =  (window_size/512)*(0.5*abs(rois[0]-rois[2])/2. + \
+                                                 0.5*abs(rois[1]-rois[3])/2.)
+
+                                    xpixglob =  xc + (window_size/512)*abs(min(rois[1],rois[3]) + (0.5*abs(rois[0]-rois[2])/2. + \
+                                                 0.5*abs(rois[1]-rois[3])/2.))
+                                    ypixglob =  yc + (window_size/512)*abs(min(rois[0],rois[2]) + (0.5*abs(rois[0]-rois[2])/2. + \
+                                                 0.5*abs(rois[1]-rois[3])/2.))
+
+                                   # print (np.shape(global_mask),np.shape(r["masks"].T[roisit].T))
+                                    global_mask = np.zeros([image_glob.shape[0],image_glob.shape[1]])
+
+                                    resized_masked=np.array(cv2.resize(np.array(r["masks"].T[roisit].T),\
+                                        (window_size, window_size), \
+                                            interpolation=cv2.INTER_LINEAR))
+
+                                    resized_masked[resized_masked>0] == 255
+
+                                    global_mask[yc:yc+window_size,xc:xc+window_size] =\
+                                                    resized_masked
+
+
+                                    Craters_Master_list.append\
+                                    (   [float(xpixglob),float(ypixglob),float(coords[2]),\
+                                        yc + (window_size/512)*rois[0], xc + (window_size/512)*rois[1],\
+                                        yc + (window_size/512)*rois[2], xc + (window_size/512)*rois[3],\
+                                        r["scores"][roisit],float(ma/(MA+1e-20)),\
+                                        global_mask, \
+                                       # cv2.resize(np.array(r["masks"].T[roisit].T),\
+                                       #  (image_glob.shape[1], image_glob.shape[1]), \
+                                       #     interpolation=cv2.INTER_LINEAR),\
+                                        len((np.ravel(global_mask))\
+                                        [(np.ravel(global_mask)) > 0] )])
+                        except:
+                            raise
+                except:
+                    raise
+    return np.array(Craters_Master_list)
+
 
 
 
