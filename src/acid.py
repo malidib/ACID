@@ -368,9 +368,9 @@ d8.          `8b  `aY8888Ya.   88  88888888Ya.
                                         len((np.ravel(global_mask))\
                                         [(np.ravel(global_mask)) > 0] )])
                         except:
-                            raise
+                            continue
                 except:
-                    raise
+                    continue
     return np.array(Craters_Master_list)
 
 
